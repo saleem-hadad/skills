@@ -4,7 +4,7 @@ A ship gate for coding agents. Before every `git push` or `gh pr create`, the ch
 
 It skips style and "nice to haves". It hunts for: tenant data leaks, data loss, abuse and cost, wrong production assumptions, N+1 queries, added latency, new dependencies, silent failures, plan gates, duplicated rules, and correctness/i18n regressions.
 
-It also reviews open PRs ("review PR #123") and can run review-only in CI.
+It also reviews open PRs ("review PR #123") and can run review-only in CI. A PR from a fork is reviewed read-only: its code is never run with your credentials unless you say so.
 
 ## Three roles
 

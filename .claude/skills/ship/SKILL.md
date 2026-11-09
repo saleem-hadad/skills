@@ -35,8 +35,9 @@ Pre-push runs before every `git push` / `gh pr create`, including fix commits to
 
 ## 1. Coordinator: load the change
 
-- **Pre-push:** `git status --porcelain` must be empty (otherwise stop and say so). `git fetch origin`; the base is `origin/main`, or the open PR's base (`gh pr view --json baseRefName`). Rebase a never-pushed branch onto `origin/main` first; never rebase a branch already on GitHub.
-- **PR / CI:** `gh pr view <n> --json title,body,baseRefName,headRefName,files`, `gh pr diff <n>`, `gh pr checks <n>`. In PR mode, `gh pr checkout <n>` (clean tree first).
+- **Pre-push:** `git status --porcelain` must be empty (otherwise stop and say so). `git fetch origin`; the base is `origin/main`, or the open PR's base (`gh pr view --json baseRefName`). Rebase a never-pushed branch onto `origin/main` first; never rebase a branch already on GitHub. If HEAD is the base branch or detached, `git switch -c <type>/<short-slug>` first.
+- **PR / CI:** `gh pr view <n> --json title,body,baseRefName,headRefName,files,isCrossRepository,author`, `gh pr diff <n>`, `gh pr checks <n>`. In PR mode, `gh pr checkout <n>` (clean tree first).
+- **Fork PR** (`isCrossRepository`): never run its code, with your credentials: no install, tests, formatter, lint, build or hooks. Review read-only like CI mode, with `Tests: not run (fork PR)`. Lift only if the user explicitly OKs it after the judge has read the diff for anything that runs on install or test (scripts, hooks, test and CI config).
 
 Then brief the judge (§Roles) and ask for its verdict in this shape:
 
@@ -63,7 +64,7 @@ A blocker hurts a tenant, their users or the business in production if shipped a
 
 **Never blockers:** style, naming, formatting, comments, a missing test on its own, structural conventions without a real defect, pre-existing issues (unless this change makes them reachable or worse).
 
-Prove every blocker by reading the code. If proof needs a test run, ask the coordinator to run it. A wrong finding costs credibility and a fix round. Anything that needs a product decision, a split, or a fix that grows into a second concern is `needs human`.
+Prove every blocker by reading the code. If proof needs a test run, ask the coordinator to run it (never for a fork PR, §1). A wrong finding costs credibility and a fix round. Anything that needs a product decision, a split, or a fix that grows into a second concern is `needs human`.
 
 ## 4. Judge: hunt list (priority order)
 
@@ -84,7 +85,7 @@ Prove every blocker by reading the code. If proof needs a test run, ask the coor
 1. **Verdict clean** → ship (§6).
 2. **Any `needs human`, or blockers left after round three** → stop. Don't push. Show the report and ask.
 3. **Otherwise, coordinator launches fixers.** Group blockers by the judge's `files`; groups never share a file. One Sonnet fixer per group, all in one message. Each brief carries the judge's blocker text and plan verbatim, the files it owns, and these rules:
-   - Apply the plan. Comment the **why** in a line. Add a regression test that fails before and passes after. Run the formatter and the targeted tests.
+   - Apply the plan. Comment the **why** in a line. Add a regression test that fails before and passes after. Run the formatter and the targeted tests (fork PR: none, §1).
    - If the plan doesn't work, or needs a file you don't own, **stop without editing** and return `NEED RULING: <why>`.
    - No commit, push, branch switch, stash or new dependencies.
    - Return: files changed, test command and result.
@@ -92,7 +93,7 @@ Prove every blocker by reading the code. If proof needs a test run, ask the coor
 5. **Coordinator checks and commits.** `git diff --stat` per group: a fixer that left its files gets those edits reverted and the blocker goes back to the judge. Run the targeted tests, then commit each group by its paths: `type(scope): <plain-English consequence>`, prose body, test result at the end.
 6. **Next round.** Continue the judge: "Fixes are committed. Review the whole `git diff <base>...HEAD` again." It confirms each earlier blocker (`fixed` / `still open`) and hunts the whole diff for new ones, since a fix can open a blocker elsewhere. Back to step 1.
 
-Before shipping, the coordinator runs the full suite, type check and lint. If main is already red on something unrelated, say so.
+Before shipping, the coordinator runs the full suite, type check and lint (not for a fork PR, §1). If main is already red on something unrelated, say so.
 
 ## 6. Coordinator: report and ship
 
@@ -113,7 +114,7 @@ Before shipping, the coordinator runs the full suite, type check and lint. If ma
 
 Built from the judge's last verdict. Headline blockers by consequence, not mechanism. No praise, no file-by-file summary. With none: `None.`
 
-- **PR (default):** `git push -u origin HEAD` and `gh pr create`. The body describes the change, then the report under `## Pre-push review`, and one line on why it didn't go to main.
+- **PR (default):** `git push -u origin HEAD` and `gh pr create`; never push from the base branch. The body describes the change, then the report under `## Pre-push review`, and one line on why it didn't go to main.
 - **Straight to main**, only if `CLAUDE.md` / `AGENTS.md` allow it, and only when: the last verdict was clean, base is main with no open PR, one concern, ≤ ~300 lines outside tests, the full suite passes locally, and it touches none of migrations, dependencies, config, routes, auth, tenancy, billing, sending, jobs, public APIs, CI or agent config (the gate never waves through a change to itself). Squash to one commit ending `Pre-push review: <n> blockers fixed`, then `git push origin HEAD:main`. Never force-push main; if rejected, rebase and run a short round.
 - **PR mode:** push fixes to the PR branch, post the report with `gh pr review <n> --comment --body-file <file>`, update the description if it's now wrong. Merge only when asked.
 - **CI mode:** brief the judge, post its blockers as one comment, stop. No fixers, commits or pushes; never approve or request changes. Tests: `not run (CI review)`; use `gh pr checks`.
