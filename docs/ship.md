@@ -1,6 +1,6 @@
 # ship
 
-A ship gate for coding agents. Before every `git push` or `gh pr create`, the change goes through a review → fix → re-review loop that looks for **production blockers only**, at most three rounds. Then it opens a PR, or pushes a small clean change straight to main if your repo allows it.
+A ship gate for coding agents. Before every `git push` or `gh pr create`, the change goes through a review → fix → re-review loop that looks for **production blockers only**, at most three rounds. Then it opens a PR, or pushes a small clean change straight to main if your repo allows it. It ends there: `/ship` doesn't deploy or monitor. Those are separate stations.
 
 It skips style and "nice to haves". It hunts for: tenant data leaks, data loss, abuse and cost, wrong production assumptions, N+1 queries, added latency, new dependencies, silent failures, plan gates, duplicated rules, and correctness/i18n regressions.
 
