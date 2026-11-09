@@ -36,8 +36,8 @@ Pre-push runs before every `git push` / `gh pr create`, including fix commits to
 ## 1. Coordinator: load the change
 
 - **Pre-push:** `git status --porcelain` must be empty (otherwise stop and say so). `git fetch origin`; the base is `origin/main`, or the open PR's base (`gh pr view --json baseRefName`). Rebase a never-pushed branch onto `origin/main` first; never rebase a branch already on GitHub. If HEAD is the base branch or detached, `git switch -c <type>/<short-slug>` first.
-- **PR / CI:** `gh pr view <n> --json title,body,baseRefName,headRefName,files,isCrossRepository,author`, `gh pr diff <n>`, `gh pr checks <n>`. In PR mode, `gh pr checkout <n>` (clean tree first).
-- **Fork PR** (`isCrossRepository`): never run its code, with your credentials: no install, tests, formatter, lint, build or hooks. Review read-only like CI mode, with `Tests: not run (fork PR)`. Lift only if the user explicitly OKs it after the judge has read the diff for anything that runs on install or test (scripts, hooks, test and CI config).
+- **PR / CI:** `gh pr view <n> --json title,body,baseRefName,headRefName,files,isCrossRepository,author`, `gh pr diff <n>`, `gh pr checks <n>`. In PR mode on a same-repo PR, `gh pr checkout <n>` (clean tree first).
+- **Fork PR** (`isCrossRepository`): never run its code, with your credentials: no install, tests, formatter, lint, build or hooks. Don't `gh pr checkout` it: git runs hooks from the checked-out tree when `core.hooksPath` points into it (as husky does). Read it with `gh pr diff <n>`; for whole files, `git fetch origin pull/<n>/head:ship-pr-<n>` then `git show ship-pr-<n>:<path>`. Review read-only like CI mode (no fixers, commits or pushes), with `Tests: not run (fork PR)`. Lift only if the user explicitly OKs it after the judge has read the diff for anything that runs on install or test (scripts, hooks, test and CI config).
 
 Then brief the judge (§Roles) and ask for its verdict in this shape:
 
@@ -85,7 +85,7 @@ Prove every blocker by reading the code. If proof needs a test run, ask the coor
 1. **Verdict clean** → ship (§6).
 2. **Any `needs human`, or blockers left after round three** → stop. Don't push. Show the report and ask.
 3. **Otherwise, coordinator launches fixers.** Group blockers by the judge's `files`; groups never share a file. One Sonnet fixer per group, all in one message. Each brief carries the judge's blocker text and plan verbatim, the files it owns, and these rules:
-   - Apply the plan. Comment the **why** in a line. Add a regression test that fails before and passes after. Run the formatter and the targeted tests (fork PR: none, §1).
+   - Apply the plan. Comment the **why** in a line. Add a regression test that fails before and passes after. Run the formatter and the targeted tests (a fork PR gets no fixers, commits or pushes, §1).
    - If the plan doesn't work, or needs a file you don't own, **stop without editing** and return `NEED RULING: <why>`.
    - No commit, push, branch switch, stash or new dependencies.
    - Return: files changed, test command and result.
