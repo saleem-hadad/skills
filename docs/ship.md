@@ -19,22 +19,12 @@ The judge never sees the conversation that wrote the code, only the diff. So the
 ## How it works
 
 ```mermaid
-flowchart TD
-    A[Push / open PR<br/>or 'review PR #123'] --> B[Coordinator loads the change]
-    B --> C[Judge reviews the whole diff<br/>fresh context, read-only]
-    C --> G{Verdict}
-    G -- clean --> S{Where does it go?}
-    G -- needs human<br/>or round 3 used --> X[Stop: show report, ask]
-    G -- blockers --> I[Coordinator launches Sonnet fixers<br/>one per file group, judge's plan verbatim]
-    I --> Q{Plan doesn't fit?}
-    Q -- NEED RULING --> R[Coordinator relays to judge,<br/>judge rules, fixer continues]
-    R --> I
-    Q -- fixed + test --> J[Coordinator checks files,<br/>runs tests, commits]
-    J --> C
-    S -- CI mode --> P1[Post one comment review]
-    S -- PR mode --> P2[Push fixes + comment review]
-    S -- small, low-risk,<br/>main allowed --> P3[Squash and push to main]
-    S -- otherwise --> P4[Open PR with<br/>report in body]
+flowchart LR
+    A[Change] --> J[Judge reviews]
+    J -- blockers --> F[Fixers fix]
+    F --> J
+    J -- clean --> S[Ship: PR or main]
+    J -- needs human<br/>or 3 rounds --> X[Stop and ask]
 ```
 
 Every round, the same judge reviews the **whole** diff again, not just the fixes. It remembers its earlier blockers and confirms each one, since a fix can open a new blocker elsewhere. CI mode has no fixers: the judge's blockers go out as one comment.
