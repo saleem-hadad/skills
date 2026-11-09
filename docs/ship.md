@@ -1,22 +1,18 @@
 # ship
 
-A ship gate for coding agents. Before every `git push` or `gh pr create`, the change goes through a review → fix → re-review loop that looks for **production blockers only**, at most three rounds. Then it opens a PR, or pushes a small clean change straight to main if your repo allows it. It ends there: `/ship` doesn't deploy or monitor. Those are separate stations.
+A pre-push gate for coding agents. Before every `git push` or `gh pr create`, the change goes through a review → fix → re-review loop (max three rounds) that looks for **production blockers only**: tenant data leaks, data loss, abuse and cost, N+1, latency, new dependencies, silent failures. No style nits. It ends at the push, with a PR, or main if your repo allows it. It doesn't deploy or monitor.
 
-It skips style and "nice to haves". It hunts for: tenant data leaks, data loss, abuse and cost, wrong production assumptions, N+1 queries, added latency, new dependencies, silent failures, plan gates, duplicated rules, and correctness/i18n regressions.
+It also reviews open PRs ("review PR #123") and runs review-only in CI. Fork PRs are reviewed read-only: their code never runs unless you say so.
 
-It also reviews open PRs ("review PR #123") and can run review-only in CI. A PR from a fork is reviewed read-only: its code is never run with your credentials unless you say so.
-
-## Three roles
+## Roles
 
 | Role | Who | Job |
 |---|---|---|
-| **Coordinator** | your agent session | drives end to end: loads the change, briefs the judge, launches fixers, runs tests, commits, ships, reports |
-| **Judge** | a subagent on the strongest model | finds blockers, writes a fix plan for each, rules on fixer questions, confirms fixes next round |
-| **Fixers** | Sonnet subagents, one per file group | apply the judge's plan with a regression test |
+| **Coordinator** | your agent session | drives everything: git, briefs, tests, commits, ship, report |
+| **Judge** | subagent, strongest model | finds blockers, plans fixes, confirms them next round |
+| **Fixers** | Sonnet subagents | apply the judge's plan with a regression test |
 
-The judge never sees the conversation that wrote the code, only the diff. So the session that wrote the change never grades its own work. The coordinator can send the judge facts, but can't overrule it.
-
-## How it works
+The judge sees only the diff, never the conversation that wrote it, so no session grades its own work.
 
 ```mermaid
 flowchart LR
@@ -27,25 +23,16 @@ flowchart LR
     J -- needs human<br/>or 3 rounds --> X[Stop and ask]
 ```
 
-Every round, the same judge reviews the **whole** diff again, not just the fixes. It remembers its earlier blockers and confirms each one, since a fix can open a new blocker elsewhere. CI mode has no fixers: the judge's blockers go out as one comment.
-
 ## Install
 
 ```bash
-mkdir -p .claude/skills
-cp -r path/to/ship .claude/skills/
+mkdir -p .claude/skills && cp -r path/to/ship .claude/skills/
 ```
 
-Needs [Claude Code](https://claude.com/claude-code) (or any agent that reads `SKILL.md` and runs subagents), `git`, and an authenticated [`gh`](https://cli.github.com/).
-
-## Run it before every push
-
-Add to your `CLAUDE.md` and `AGENTS.md`:
+Needs [Claude Code](https://claude.com/claude-code) (or any agent that reads `SKILL.md` and runs subagents), `git` and [`gh`](https://cli.github.com/). Then add to your `CLAUDE.md` / `AGENTS.md`:
 
 ```markdown
-# Review before every push
-
-IMPORTANT: Before any `git push` or `gh pr create`, run the pre-push review in `.claude/skills/ship/SKILL.md`. In Claude Code, invoke the `ship` skill; any other agent reads that file and follows it. Skip it only when the user explicitly says to skip it for that push.
+IMPORTANT: Before any `git push` or `gh pr create`, run the `ship` skill (`.claude/skills/ship/SKILL.md`). Skip it only when the user explicitly says so for that push.
 ```
 
-Straight-to-main is off by default. To allow it, add a line such as `Small clean changes may go straight to main.` to the same file. The skill still sends anything risky (migrations, dependencies, auth, billing, CI, …) through a PR.
+To allow straight-to-main for small clean changes, add a line like `Small clean changes may go straight to main.` Risky changes (migrations, dependencies, auth, billing, CI) still get a PR.
